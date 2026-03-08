@@ -8,9 +8,20 @@ import type { BookData } from "@/lib/data";
 interface BookProps {
   book: BookData;
   index: number;
+  initialRotateY?: number;
 }
 
-export default function Book({ book, index }: BookProps) {
+// Deterministic pseudo-random for consistent SSR/client rendering
+function sr(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+export default function Book({
+  book,
+  index,
+  initialRotateY = -8,
+}: BookProps) {
   const router = useRouter();
   const [isOpening, setIsOpening] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -20,18 +31,20 @@ export default function Book({ book, index }: BookProps) {
   };
 
   // Physical book dimensions
-  const W = 260; // cover width
-  const H = 380; // cover height
-  const D = 40; // spine/depth thickness
+  const W = 260;
+  const H = 380;
+  const D = 40;
 
-  // Darken cover color for spine
   const spineColor = book.coverColor;
+
+  // Hover target: if initial lean is left (negative), hover rotates right (positive), and vice versa
+  const hoverRotateY = initialRotateY < 0 ? 10 : -10;
 
   return (
     <>
       {/* Book on shelf */}
       <motion.div
-        className="relative cursor-pointer flex-shrink-0"
+        className="relative cursor-pointer"
         style={{ perspective: 1600, width: W, height: H }}
         initial={{ opacity: 0, y: 80 }}
         animate={{ opacity: 1, y: 0 }}
@@ -46,19 +59,15 @@ export default function Book({ book, index }: BookProps) {
       >
         <motion.div
           className="relative w-full h-full"
-          style={{
-            transformStyle: "preserve-3d",
-            // Default slight angle so the spine and depth are visible at rest
-            rotateY: -8,
-          }}
+          style={{ transformStyle: "preserve-3d" }}
           animate={{
             y: isHovered ? -14 : 0,
-            rotateY: isHovered ? 8 : -8,
+            rotateY: isHovered ? hoverRotateY : initialRotateY,
             rotateX: isHovered ? -2 : 2,
           }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* ======= FRONT COVER ======= */}
+          {/* ═══ FRONT COVER ═══ */}
           <div
             className="absolute inset-0 overflow-hidden"
             style={{
@@ -69,12 +78,10 @@ export default function Book({ book, index }: BookProps) {
               borderRadius: "1px 4px 4px 1px",
             }}
           >
-            {/* Cover base color */}
             <div
               className="absolute inset-0"
               style={{ backgroundColor: book.coverColor }}
             />
-            {/* Cover photo */}
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{
@@ -82,7 +89,6 @@ export default function Book({ book, index }: BookProps) {
                 opacity: 0.55,
               }}
             />
-            {/* Vignette */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
             {/* Top edge highlight */}
             <div
@@ -92,13 +98,13 @@ export default function Book({ book, index }: BookProps) {
                   "linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent)",
               }}
             />
-            {/* Light reflection that moves on hover */}
+            {/* Dynamic light reflection */}
             <motion.div
               className="absolute inset-0 pointer-events-none"
               animate={{
                 background: isHovered
-                  ? "linear-gradient(115deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0) 60%)"
-                  : "linear-gradient(115deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 100%)",
+                  ? "linear-gradient(115deg, rgba(255,240,200,0.20) 0%, rgba(255,255,255,0.05) 30%, rgba(255,255,255,0) 60%)"
+                  : "linear-gradient(115deg, rgba(255,240,200,0.04) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 100%)",
               }}
               transition={{ duration: 0.7 }}
             />
@@ -122,7 +128,7 @@ export default function Book({ book, index }: BookProps) {
             </div>
           </div>
 
-          {/* ======= BACK COVER ======= */}
+          {/* ═══ BACK COVER ═══ */}
           <div
             className="absolute"
             style={{
@@ -134,7 +140,6 @@ export default function Book({ book, index }: BookProps) {
               borderRadius: "4px 1px 1px 4px",
             }}
           >
-            {/* Subtle texture */}
             <div
               className="absolute inset-0"
               style={{
@@ -144,7 +149,7 @@ export default function Book({ book, index }: BookProps) {
             />
           </div>
 
-          {/* ======= SPINE (left face) ======= */}
+          {/* ═══ SPINE (left face) ═══ */}
           <div
             className="absolute top-0 flex items-center justify-center"
             style={{
@@ -194,7 +199,7 @@ export default function Book({ book, index }: BookProps) {
             </span>
           </div>
 
-          {/* ======= RIGHT EDGE (pages) ======= */}
+          {/* ═══ RIGHT EDGE (pages) ═══ */}
           <div
             className="absolute top-0 overflow-hidden"
             style={{
@@ -206,7 +211,6 @@ export default function Book({ book, index }: BookProps) {
               backfaceVisibility: "hidden",
             }}
           >
-            {/* Page edge base */}
             <div
               className="absolute inset-0"
               style={{
@@ -214,7 +218,7 @@ export default function Book({ book, index }: BookProps) {
                   "linear-gradient(to right, #e8e2da, #f0ebe5, #ebe5dd)",
               }}
             />
-            {/* Individual page lines */}
+            {/* Page lines — deterministic */}
             {Array.from({ length: 30 }).map((_, i) => (
               <div
                 key={i}
@@ -222,11 +226,10 @@ export default function Book({ book, index }: BookProps) {
                 style={{
                   top: 8 + i * ((H - 16) / 30),
                   height: "1px",
-                  background: `rgba(0,0,0,${0.03 + Math.random() * 0.03})`,
+                  background: `rgba(0,0,0,${(0.03 + sr(i * 7 + 1) * 0.03).toFixed(4)})`,
                 }}
               />
             ))}
-            {/* Page edge shadow */}
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -236,7 +239,7 @@ export default function Book({ book, index }: BookProps) {
             />
           </div>
 
-          {/* ======= TOP EDGE (pages) ======= */}
+          {/* ═══ TOP EDGE (pages) ═══ */}
           <div
             className="absolute left-0"
             style={{
@@ -255,7 +258,6 @@ export default function Book({ book, index }: BookProps) {
                   "linear-gradient(to bottom, #f0ebe5, #e8e2da)",
               }}
             />
-            {/* Page line texture */}
             {Array.from({ length: 18 }).map((_, i) => (
               <div
                 key={i}
@@ -263,13 +265,13 @@ export default function Book({ book, index }: BookProps) {
                 style={{
                   left: 8 + i * ((W - 16) / 18),
                   width: "1px",
-                  background: `rgba(0,0,0,${0.02 + Math.random() * 0.02})`,
+                  background: `rgba(0,0,0,${(0.02 + sr(i * 13 + 100) * 0.02).toFixed(4)})`,
                 }}
               />
             ))}
           </div>
 
-          {/* ======= BOTTOM EDGE (pages) ======= */}
+          {/* ═══ BOTTOM EDGE (pages) ═══ */}
           <div
             className="absolute left-0"
             style={{
@@ -295,28 +297,28 @@ export default function Book({ book, index }: BookProps) {
                 style={{
                   left: 8 + i * ((W - 16) / 18),
                   width: "1px",
-                  background: `rgba(0,0,0,${0.02 + Math.random() * 0.02})`,
+                  background: `rgba(0,0,0,${(0.02 + sr(i * 17 + 200) * 0.02).toFixed(4)})`,
                 }}
               />
             ))}
           </div>
 
-          {/* ======= SHADOW ======= */}
+          {/* ═══ WARM SHADOW ═══ */}
           <motion.div
             className="absolute rounded-[50%]"
             style={{
-              width: W * 1.1,
-              height: 30,
-              left: -W * 0.05,
-              bottom: -28,
-              filter: "blur(18px)",
+              width: W * 1.15,
+              height: 34,
+              left: -W * 0.075,
+              bottom: -30,
+              filter: "blur(20px)",
               transformStyle: "flat",
               transform: "translateZ(-30px)",
             }}
             animate={{
               backgroundColor: isHovered
-                ? "rgba(0,0,0,0.28)"
-                : "rgba(0,0,0,0.12)",
+                ? "rgba(50, 30, 10, 0.30)"
+                : "rgba(50, 30, 10, 0.13)",
               scaleX: isHovered ? 1.15 : 1,
               scaleY: isHovered ? 1.3 : 1,
               y: isHovered ? 10 : 0,
@@ -326,13 +328,13 @@ export default function Book({ book, index }: BookProps) {
         </motion.div>
       </motion.div>
 
-      {/* ======= BOOK OPENING OVERLAY ======= */}
+      {/* ═══ BOOK OPENING OVERLAY ═══ */}
       <AnimatePresence>
         {isOpening && (
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center"
-            initial={{ backgroundColor: "rgba(250,248,245,0)" }}
-            animate={{ backgroundColor: "rgba(250,248,245,1)" }}
+            initial={{ backgroundColor: "rgba(240,232,218,0)" }}
+            animate={{ backgroundColor: "rgba(240,232,218,1)" }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
           >
             <motion.div
@@ -355,16 +357,17 @@ export default function Book({ book, index }: BookProps) {
               >
                 {/* Inside pages (revealed after cover opens) */}
                 <motion.div
-                  className="absolute inset-0 bg-[#faf8f5] flex items-center justify-center overflow-hidden"
+                  className="absolute inset-0 flex items-center justify-center overflow-hidden"
                   style={{
+                    backgroundColor: "#f8f4ec",
                     borderRadius: "2px 4px 4px 2px",
-                    boxShadow: "inset 2px 0 8px rgba(0,0,0,0.04)",
+                    boxShadow: "inset 2px 0 12px rgba(40, 25, 10, 0.06)",
                   }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5, duration: 0.8 }}
                 >
-                  {/* Subtle page texture lines */}
+                  {/* Page texture lines */}
                   <div className="absolute inset-0 pointer-events-none opacity-30">
                     {Array.from({ length: 20 }).map((_, i) => (
                       <div
@@ -373,7 +376,7 @@ export default function Book({ book, index }: BookProps) {
                         style={{
                           top: 80 + i * 28,
                           height: "1px",
-                          background: "rgba(0,0,0,0.03)",
+                          background: "rgba(80, 60, 30, 0.04)",
                         }}
                       />
                     ))}
@@ -381,13 +384,15 @@ export default function Book({ book, index }: BookProps) {
                   {/* Title page content */}
                   <div className="text-center relative z-[1]">
                     <motion.div
-                      className="w-8 h-[1px] bg-neutral-200 mx-auto mb-8"
+                      className="w-8 h-[1px] mx-auto mb-8"
+                      style={{ backgroundColor: "rgba(160, 140, 100, 0.25)" }}
                       initial={{ scaleX: 0, opacity: 0 }}
                       animate={{ scaleX: 1, opacity: 1 }}
                       transition={{ delay: 1.2, duration: 0.6 }}
                     />
                     <motion.p
-                      className="text-[10px] tracking-[0.5em] uppercase text-neutral-300 mb-4"
+                      className="text-[10px] tracking-[0.5em] uppercase mb-4"
+                      style={{ color: "rgba(120, 100, 70, 0.5)" }}
                       initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 1.0, duration: 0.7 }}
@@ -395,7 +400,8 @@ export default function Book({ book, index }: BookProps) {
                       {book.subtitle}
                     </motion.p>
                     <motion.h1
-                      className="text-5xl md:text-6xl font-extralight tracking-wide text-neutral-800"
+                      className="text-5xl md:text-6xl font-extralight tracking-wide"
+                      style={{ color: "rgba(50, 40, 25, 0.85)" }}
                       initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 1.15, duration: 0.7 }}
@@ -403,7 +409,8 @@ export default function Book({ book, index }: BookProps) {
                       {book.title}
                     </motion.h1>
                     <motion.div
-                      className="w-8 h-[1px] bg-neutral-200 mx-auto mt-8"
+                      className="w-8 h-[1px] mx-auto mt-8"
+                      style={{ backgroundColor: "rgba(160, 140, 100, 0.25)" }}
                       initial={{ scaleX: 0, opacity: 0 }}
                       animate={{ scaleX: 1, opacity: 1 }}
                       transition={{ delay: 1.3, duration: 0.6 }}
@@ -435,7 +442,7 @@ export default function Book({ book, index }: BookProps) {
                   />
                 </motion.div>
 
-                {/* Front cover — swings open from left spine edge */}
+                {/* Front cover — swings open from spine */}
                 <motion.div
                   className="absolute inset-0 overflow-hidden"
                   style={{
@@ -455,7 +462,7 @@ export default function Book({ book, index }: BookProps) {
                     router.push(`/category/${book.slug}`);
                   }}
                 >
-                  {/* Cover front face */}
+                  {/* Cover front */}
                   <div className="absolute inset-0">
                     <div
                       className="absolute inset-0"
@@ -477,13 +484,13 @@ export default function Book({ book, index }: BookProps) {
                       </h2>
                     </div>
                   </div>
-                  {/* Cover back face (inside of front cover, cream colored) */}
+                  {/* Cover back face */}
                   <div
                     className="absolute inset-0"
                     style={{
                       backfaceVisibility: "hidden",
                       transform: "rotateY(180deg)",
-                      backgroundColor: "#ede8e0",
+                      backgroundColor: "#e8e0d4",
                       borderRadius: "4px 1px 1px 4px",
                     }}
                   >
