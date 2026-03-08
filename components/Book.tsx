@@ -19,26 +19,26 @@ export default function Book({ book, index }: BookProps) {
     setIsOpening(true);
   };
 
-  const spineWidth = 28;
-  const bookWidth = 220;
-  const bookHeight = 320;
+  // Physical book dimensions
+  const W = 260; // cover width
+  const H = 380; // cover height
+  const D = 40; // spine/depth thickness
+
+  // Darken cover color for spine
+  const spineColor = book.coverColor;
 
   return (
     <>
       {/* Book on shelf */}
       <motion.div
         className="relative cursor-pointer flex-shrink-0"
-        style={{
-          perspective: 1200,
-          width: bookWidth,
-          height: bookHeight,
-        }}
-        initial={{ opacity: 0, y: 60 }}
+        style={{ perspective: 1600, width: W, height: H }}
+        initial={{ opacity: 0, y: 80 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{
-          duration: 0.8,
-          delay: index * 0.12,
-          ease: [0.25, 0.1, 0.25, 1],
+          duration: 1,
+          delay: 0.3 + index * 0.15,
+          ease: [0.22, 1, 0.36, 1],
         }}
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
@@ -46,72 +46,145 @@ export default function Book({ book, index }: BookProps) {
       >
         <motion.div
           className="relative w-full h-full"
-          style={{ transformStyle: "preserve-3d" }}
-          animate={{
-            y: isHovered ? -16 : 0,
-            rotateY: isHovered ? -6 : 0,
-            rotateX: isHovered ? 3 : 0,
-            scale: isHovered ? 1.03 : 1,
+          style={{
+            transformStyle: "preserve-3d",
+            // Default slight angle so the spine and depth are visible at rest
+            rotateY: -8,
           }}
-          transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+          animate={{
+            y: isHovered ? -14 : 0,
+            rotateY: isHovered ? 8 : -8,
+            rotateX: isHovered ? -2 : 2,
+          }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Front cover */}
+          {/* ======= FRONT COVER ======= */}
           <div
-            className="absolute inset-0 rounded-r-sm overflow-hidden"
+            className="absolute inset-0 overflow-hidden"
             style={{
+              width: W,
+              height: H,
               backfaceVisibility: "hidden",
-              transformStyle: "preserve-3d",
-              transform: `translateZ(${spineWidth / 2}px)`,
+              transform: `translateZ(${D / 2}px)`,
+              borderRadius: "1px 4px 4px 1px",
             }}
           >
-            {/* Cover background */}
+            {/* Cover base color */}
             <div
               className="absolute inset-0"
               style={{ backgroundColor: book.coverColor }}
             />
-            {/* Cover image */}
+            {/* Cover photo */}
             <div
-              className="absolute inset-0 bg-cover bg-center opacity-60"
+              className="absolute inset-0 bg-cover bg-center"
               style={{
                 backgroundImage: `url(${book.images[0]})`,
+                opacity: 0.55,
               }}
             />
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            {/* Light reflection on hover */}
+            {/* Vignette */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
+            {/* Top edge highlight */}
+            <div
+              className="absolute top-0 left-0 right-0 h-[1px]"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent)",
+              }}
+            />
+            {/* Light reflection that moves on hover */}
             <motion.div
-              className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/0"
+              className="absolute inset-0 pointer-events-none"
               animate={{
                 background: isHovered
-                  ? "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 60%)"
-                  : "linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 60%)",
+                  ? "linear-gradient(115deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0) 60%)"
+                  : "linear-gradient(115deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 100%)",
               }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.7 }}
             />
-            {/* Title */}
-            <div className="absolute bottom-0 left-0 right-0 p-5">
-              <h3 className="text-white font-light tracking-[0.2em] uppercase text-xs">
+            {/* Cover emboss border */}
+            <div
+              className="absolute inset-[12px] pointer-events-none"
+              style={{
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: "1px",
+              }}
+            />
+            {/* Title block */}
+            <div className="absolute bottom-0 left-0 right-0 p-7">
+              <p className="text-white/50 text-[9px] tracking-[0.35em] uppercase mb-2">
                 {book.subtitle}
-              </h3>
-              <h2 className="text-white font-light text-2xl mt-1 tracking-wide">
+              </p>
+              <h2 className="text-white font-light text-[26px] tracking-[0.04em] leading-tight">
                 {book.title}
               </h2>
+              <div className="w-6 h-[1px] bg-white/20 mt-4" />
             </div>
           </div>
 
-          {/* Spine */}
+          {/* ======= BACK COVER ======= */}
           <div
-            className="absolute top-0 left-0 h-full flex items-center justify-center"
+            className="absolute"
             style={{
-              width: spineWidth,
+              width: W,
+              height: H,
               backgroundColor: book.coverColor,
-              transform: `rotateY(-90deg) translateZ(0px) translateX(-${spineWidth / 2}px)`,
-              transformOrigin: "left",
+              transform: `translateZ(${-D / 2}px) rotateY(180deg)`,
+              backfaceVisibility: "hidden",
+              borderRadius: "4px 1px 1px 4px",
+            }}
+          >
+            {/* Subtle texture */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.05) 100%)",
+              }}
+            />
+          </div>
+
+          {/* ======= SPINE (left face) ======= */}
+          <div
+            className="absolute top-0 flex items-center justify-center"
+            style={{
+              width: D,
+              height: H,
+              backgroundColor: spineColor,
+              transform: `rotateY(-90deg) translateZ(${D / 2}px)`,
+              transformOrigin: "left center",
+              left: -D / 2,
               backfaceVisibility: "hidden",
             }}
           >
+            {/* Spine groove lines */}
+            <div
+              className="absolute top-[10px] left-0 right-0 h-[2px]"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            />
+            <div
+              className="absolute top-[14px] left-0 right-0 h-[1px]"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+            />
+            <div
+              className="absolute bottom-[10px] left-0 right-0 h-[2px]"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            />
+            <div
+              className="absolute bottom-[14px] left-0 right-0 h-[1px]"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+            />
+            {/* Spine highlight */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(to right, rgba(255,255,255,0.08), rgba(0,0,0,0.08), rgba(255,255,255,0.03))",
+              }}
+            />
+            {/* Spine title */}
             <span
-              className="text-white/70 text-[9px] tracking-[0.3em] uppercase whitespace-nowrap"
+              className="text-white/60 text-[8px] tracking-[0.4em] uppercase whitespace-nowrap"
               style={{
                 writingMode: "vertical-rl",
                 textOrientation: "mixed",
@@ -121,146 +194,307 @@ export default function Book({ book, index }: BookProps) {
             </span>
           </div>
 
-          {/* Bottom edge */}
+          {/* ======= RIGHT EDGE (pages) ======= */}
           <div
-            className="absolute bottom-0 left-0 w-full"
+            className="absolute top-0 overflow-hidden"
             style={{
-              height: spineWidth,
-              backgroundColor: "#f5f0eb",
-              transform: `rotateX(90deg) translateZ(${spineWidth / 2}px) translateY(${spineWidth / 2}px)`,
-              transformOrigin: "bottom",
+              width: D,
+              height: H,
+              transform: `rotateY(90deg) translateZ(${W - D / 2}px)`,
+              transformOrigin: "left center",
+              left: -D / 2,
               backfaceVisibility: "hidden",
             }}
-          />
+          >
+            {/* Page edge base */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to right, #e8e2da, #f0ebe5, #ebe5dd)",
+              }}
+            />
+            {/* Individual page lines */}
+            {Array.from({ length: 30 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute left-0 right-0"
+                style={{
+                  top: 8 + i * ((H - 16) / 30),
+                  height: "1px",
+                  background: `rgba(0,0,0,${0.03 + Math.random() * 0.03})`,
+                }}
+              />
+            ))}
+            {/* Page edge shadow */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(to right, rgba(0,0,0,0.08), transparent 30%, transparent 70%, rgba(0,0,0,0.04))",
+              }}
+            />
+          </div>
 
-          {/* Shadow */}
+          {/* ======= TOP EDGE (pages) ======= */}
+          <div
+            className="absolute left-0"
+            style={{
+              width: W,
+              height: D,
+              transform: `rotateX(90deg) translateZ(${D / 2}px)`,
+              transformOrigin: "top center",
+              top: -D / 2,
+              backfaceVisibility: "hidden",
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, #f0ebe5, #e8e2da)",
+              }}
+            />
+            {/* Page line texture */}
+            {Array.from({ length: 18 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: 8 + i * ((W - 16) / 18),
+                  width: "1px",
+                  background: `rgba(0,0,0,${0.02 + Math.random() * 0.02})`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* ======= BOTTOM EDGE (pages) ======= */}
+          <div
+            className="absolute left-0"
+            style={{
+              width: W,
+              height: D,
+              transform: `rotateX(-90deg) translateZ(${H - D / 2}px)`,
+              transformOrigin: "top center",
+              top: -D / 2,
+              backfaceVisibility: "hidden",
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, #ebe5dd, #e8e2da)",
+              }}
+            />
+            {Array.from({ length: 18 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: 8 + i * ((W - 16) / 18),
+                  width: "1px",
+                  background: `rgba(0,0,0,${0.02 + Math.random() * 0.02})`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* ======= SHADOW ======= */}
           <motion.div
-            className="absolute -bottom-4 left-2 right-2 h-8 rounded-full"
-            style={{ filter: "blur(12px)" }}
+            className="absolute rounded-[50%]"
+            style={{
+              width: W * 1.1,
+              height: 30,
+              left: -W * 0.05,
+              bottom: -28,
+              filter: "blur(18px)",
+              transformStyle: "flat",
+              transform: "translateZ(-30px)",
+            }}
             animate={{
               backgroundColor: isHovered
-                ? "rgba(0,0,0,0.3)"
+                ? "rgba(0,0,0,0.28)"
                 : "rgba(0,0,0,0.12)",
-              scaleX: isHovered ? 1.1 : 1,
-              y: isHovered ? 8 : 0,
+              scaleX: isHovered ? 1.15 : 1,
+              scaleY: isHovered ? 1.3 : 1,
+              y: isHovered ? 10 : 0,
             }}
-            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           />
         </motion.div>
       </motion.div>
 
-      {/* Book opening overlay */}
+      {/* ======= BOOK OPENING OVERLAY ======= */}
       <AnimatePresence>
         {isOpening && (
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center"
-            initial={{ backgroundColor: "rgba(255,255,255,0)" }}
-            animate={{ backgroundColor: "rgba(255,255,255,1)" }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
+            initial={{ backgroundColor: "rgba(250,248,245,0)" }}
+            animate={{ backgroundColor: "rgba(250,248,245,1)" }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
           >
-            {/* Opening book animation */}
             <motion.div
               className="relative"
               style={{
-                perspective: 2000,
-                width: 500,
-                height: 680,
+                perspective: 2500,
+                width: 520,
+                height: 700,
               }}
-              initial={{ scale: 0.4, y: 0 }}
-              animate={{ scale: 1, y: 0 }}
+              initial={{ scale: 0.35, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{
-                duration: 0.8,
-                ease: [0.25, 0.1, 0.25, 1],
+                duration: 1,
+                ease: [0.22, 1, 0.36, 1],
               }}
             >
               <div
                 className="relative w-full h-full"
                 style={{ transformStyle: "preserve-3d" }}
               >
-                {/* Back cover (visible after flip) */}
-                <div
-                  className="absolute inset-0 rounded-l-sm"
-                  style={{
-                    backgroundColor: book.coverColor,
-                    backfaceVisibility: "hidden",
-                    transform: "rotateY(180deg)",
-                  }}
-                />
-
-                {/* Inside page */}
+                {/* Inside pages (revealed after cover opens) */}
                 <motion.div
-                  className="absolute inset-0 bg-[#faf8f5] flex items-center justify-center"
+                  className="absolute inset-0 bg-[#faf8f5] flex items-center justify-center overflow-hidden"
+                  style={{
+                    borderRadius: "2px 4px 4px 2px",
+                    boxShadow: "inset 2px 0 8px rgba(0,0,0,0.04)",
+                  }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6, duration: 0.6 }}
+                  transition={{ delay: 0.5, duration: 0.8 }}
                 >
-                  <div className="text-center">
+                  {/* Subtle page texture lines */}
+                  <div className="absolute inset-0 pointer-events-none opacity-30">
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute left-[40px] right-[40px]"
+                        style={{
+                          top: 80 + i * 28,
+                          height: "1px",
+                          background: "rgba(0,0,0,0.03)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {/* Title page content */}
+                  <div className="text-center relative z-[1]">
+                    <motion.div
+                      className="w-8 h-[1px] bg-neutral-200 mx-auto mb-8"
+                      initial={{ scaleX: 0, opacity: 0 }}
+                      animate={{ scaleX: 1, opacity: 1 }}
+                      transition={{ delay: 1.2, duration: 0.6 }}
+                    />
                     <motion.p
-                      className="text-[11px] tracking-[0.4em] uppercase text-neutral-400 mb-3"
-                      initial={{ opacity: 0, y: 20 }}
+                      className="text-[10px] tracking-[0.5em] uppercase text-neutral-300 mb-4"
+                      initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.9, duration: 0.6 }}
+                      transition={{ delay: 1.0, duration: 0.7 }}
                     >
                       {book.subtitle}
                     </motion.p>
                     <motion.h1
-                      className="text-5xl font-light tracking-wide text-neutral-900"
-                      initial={{ opacity: 0, y: 20 }}
+                      className="text-5xl md:text-6xl font-extralight tracking-wide text-neutral-800"
+                      initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1.0, duration: 0.6 }}
+                      transition={{ delay: 1.15, duration: 0.7 }}
                     >
                       {book.title}
                     </motion.h1>
+                    <motion.div
+                      className="w-8 h-[1px] bg-neutral-200 mx-auto mt-8"
+                      initial={{ scaleX: 0, opacity: 0 }}
+                      animate={{ scaleX: 1, opacity: 1 }}
+                      transition={{ delay: 1.3, duration: 0.6 }}
+                    />
                   </div>
                 </motion.div>
 
-                {/* Front cover (flips open) */}
+                {/* Spine visible during opening */}
                 <motion.div
-                  className="absolute inset-0 rounded-r-sm overflow-hidden"
+                  className="absolute top-0 h-full"
+                  style={{
+                    width: D,
+                    left: 0,
+                    backgroundColor: spineColor,
+                    transform: `translateX(-${D}px) rotateY(-90deg)`,
+                    transformOrigin: "right center",
+                    backfaceVisibility: "hidden",
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                >
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(to right, rgba(255,255,255,0.06), rgba(0,0,0,0.06), rgba(255,255,255,0.03))",
+                    }}
+                  />
+                </motion.div>
+
+                {/* Front cover — swings open from left spine edge */}
+                <motion.div
+                  className="absolute inset-0 overflow-hidden"
                   style={{
                     backfaceVisibility: "hidden",
                     transformOrigin: "left center",
                     transformStyle: "preserve-3d",
+                    borderRadius: "1px 4px 4px 1px",
                   }}
                   initial={{ rotateY: 0 }}
-                  animate={{ rotateY: -160 }}
+                  animate={{ rotateY: -155 }}
                   transition={{
-                    duration: 1.4,
-                    delay: 0.4,
-                    ease: [0.25, 0.1, 0.25, 1],
+                    duration: 1.6,
+                    delay: 0.5,
+                    ease: [0.22, 1, 0.36, 1],
                   }}
                   onAnimationComplete={() => {
                     router.push(`/category/${book.slug}`);
                   }}
                 >
-                  <div
-                    className="absolute inset-0"
-                    style={{ backgroundColor: book.coverColor }}
-                  />
-                  <div
-                    className="absolute inset-0 bg-cover bg-center opacity-60"
-                    style={{
-                      backgroundImage: `url(${book.images[0]})`,
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-8">
-                    <p className="text-white/70 text-xs tracking-[0.3em] uppercase">
-                      {book.subtitle}
-                    </p>
-                    <h2 className="text-white text-4xl font-light mt-2 tracking-wide">
-                      {book.title}
-                    </h2>
+                  {/* Cover front face */}
+                  <div className="absolute inset-0">
+                    <div
+                      className="absolute inset-0"
+                      style={{ backgroundColor: book.coverColor }}
+                    />
+                    <div
+                      className="absolute inset-0 bg-cover bg-center opacity-55"
+                      style={{
+                        backgroundImage: `url(${book.images[0]})`,
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
+                    <div className="absolute bottom-0 left-0 right-0 p-10">
+                      <p className="text-white/50 text-[10px] tracking-[0.35em] uppercase mb-2">
+                        {book.subtitle}
+                      </p>
+                      <h2 className="text-white font-light text-4xl tracking-[0.04em]">
+                        {book.title}
+                      </h2>
+                    </div>
                   </div>
-                  {/* Back of cover */}
+                  {/* Cover back face (inside of front cover, cream colored) */}
                   <div
                     className="absolute inset-0"
                     style={{
                       backfaceVisibility: "hidden",
                       transform: "rotateY(180deg)",
-                      backgroundColor: "#f0ebe5",
+                      backgroundColor: "#ede8e0",
+                      borderRadius: "4px 1px 1px 4px",
                     }}
-                  />
+                  >
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.06) 100%)",
+                      }}
+                    />
+                  </div>
                 </motion.div>
               </div>
             </motion.div>

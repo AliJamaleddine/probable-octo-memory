@@ -10,103 +10,98 @@ interface BookShelfProps {
 
 export default function BookShelf({ books }: BookShelfProps) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#faf8f5] overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-[#faf8f5] overflow-hidden">
       {/* Header */}
       <motion.header
-        className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-10 py-8"
+        className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-12 py-10"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+        transition={{ duration: 1.2, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div>
-          <h1 className="text-[11px] tracking-[0.5em] uppercase text-neutral-400">
-            Photography Collection
-          </h1>
-        </div>
-        <div>
-          <span className="text-[10px] tracking-[0.3em] uppercase text-neutral-300">
-            Select a Volume
-          </span>
-        </div>
+        <h1 className="text-[10px] tracking-[0.6em] uppercase text-neutral-400">
+          Photography Collection
+        </h1>
+        <span className="text-[9px] tracking-[0.4em] uppercase text-neutral-300">
+          Select a Volume
+        </span>
       </motion.header>
 
-      {/* Main title */}
-      <motion.div
-        className="text-center mb-20 relative z-[1]"
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-      >
-        <p className="text-[10px] tracking-[0.6em] uppercase text-neutral-300 mb-4">
-          The Library
-        </p>
-        <h2 className="text-6xl md:text-7xl font-extralight text-neutral-800 tracking-tight">
-          Photography
-        </h2>
-        <div className="w-12 h-[1px] bg-neutral-200 mx-auto mt-6" />
-      </motion.div>
-
-      {/* Bookshelf */}
-      <div className="w-full relative">
-        {/* Books container */}
-        <div
-          className="flex items-end justify-center gap-10 md:gap-14 px-10 pb-4 overflow-x-auto scrollbar-hide"
-          style={{
-            perspective: 1000,
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
-        >
-          {books.map((book, index) => (
-            <Book key={book.slug} book={book} index={index} />
-          ))}
-        </div>
-
-        {/* Shelf surface */}
+      {/* Main area */}
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-8">
+        {/* Title */}
         <motion.div
-          className="relative mx-auto"
-          style={{ maxWidth: 1400 }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.6 }}
+          className="text-center mb-24 md:mb-32"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.2, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Shelf top */}
-          <div
-            className="h-[6px] mx-8 rounded-sm"
-            style={{
-              background:
-                "linear-gradient(to bottom, #d4c9bc, #c4b8aa)",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            }}
-          />
-          {/* Shelf front face */}
-          <div
-            className="h-[18px] mx-6"
-            style={{
-              background:
-                "linear-gradient(to bottom, #c4b8aa, #b8a99a)",
-              borderRadius: "0 0 2px 2px",
-            }}
-          />
-          {/* Shelf shadow */}
-          <div
-            className="h-6 mx-10"
-            style={{
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,0.06), transparent)",
-            }}
-          />
+          <p className="text-[9px] tracking-[0.7em] uppercase text-neutral-300 mb-5">
+            The Library
+          </p>
+          <h2 className="text-7xl md:text-8xl lg:text-9xl font-extralight text-neutral-800 tracking-tight leading-none">
+            Photography
+          </h2>
+          <div className="w-16 h-[1px] bg-neutral-200 mx-auto mt-8" />
         </motion.div>
+
+        {/* Books display */}
+        <div className="w-full max-w-[1600px] mx-auto relative">
+          {/* Books row */}
+          <div
+            className="flex items-end justify-center gap-16 md:gap-20 lg:gap-28 px-8 pb-6 overflow-x-auto scrollbar-hide"
+            style={{
+              perspective: 1800,
+              perspectiveOrigin: "50% 40%",
+            }}
+          >
+            {books.map((book, index) => (
+              <Book key={book.slug} book={book} index={index} />
+            ))}
+          </div>
+
+          {/* Shelf — minimal gallery plinth style */}
+          <motion.div
+            className="relative mx-auto max-w-[1500px]"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.8 }}
+          >
+            {/* Top surface with subtle highlight */}
+            <div
+              className="h-[3px] mx-12"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, rgba(0,0,0,0.06), transparent)",
+              }}
+            />
+            {/* Thin shelf line */}
+            <div
+              className="h-[1px] mx-10"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, rgba(0,0,0,0.08), transparent)",
+              }}
+            />
+            {/* Shadow below shelf */}
+            <div
+              className="h-16 mx-16"
+              style={{
+                background:
+                  "linear-gradient(to bottom, rgba(0,0,0,0.03), transparent)",
+              }}
+            />
+          </motion.div>
+        </div>
       </div>
 
       {/* Footer */}
       <motion.footer
-        className="fixed bottom-0 left-0 right-0 flex items-center justify-center py-8"
+        className="fixed bottom-0 left-0 right-0 flex items-center justify-center py-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1, delay: 1 }}
+        transition={{ duration: 1, delay: 1.2 }}
       >
-        <span className="text-[9px] tracking-[0.5em] uppercase text-neutral-300">
+        <span className="text-[8px] tracking-[0.6em] uppercase text-neutral-300">
           {books.length} Volumes
         </span>
       </motion.footer>
