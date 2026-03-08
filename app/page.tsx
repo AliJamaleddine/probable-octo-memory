@@ -1,6 +1,6 @@
-import BookShelf from "@/components/BookShelf";
+import CreativeDesk from "@/components/CreativeDesk";
 import { books } from "@/lib/data";
 
 export default function HomePage() {
-  return <BookShelf books={books} />;
+  return <CreativeDesk books={books} />;
 }

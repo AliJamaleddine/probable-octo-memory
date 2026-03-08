@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Photography — A Collection",
+  title: "Photography — Creative Desk",
   description:
-    "A minimalist photography portfolio presented as a digital library of photographic monographs.",
+    "An interactive creative desk portfolio — explore the workspace of a photographer, full of sketches, notes, and photographic prints.",
 };
 
 export default function RootLayout({
