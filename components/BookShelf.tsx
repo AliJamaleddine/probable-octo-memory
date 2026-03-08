@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
-import Book from "./Book";
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import LoadingScreen from "./LoadingScreen";
 import type { BookData } from "@/lib/data";
 
@@ -10,394 +10,223 @@ interface BookShelfProps {
   books: BookData[];
 }
 
-// Deterministic pseudo-random
-function sr(seed: number): number {
-  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-// ── Placement config for each standing book ──
-// x, y offsets from center of scene (in scene-space pixels)
-interface StandingPlacement {
-  x: number;
-  y: number;
+// ── Per-print styling: aspect ratio, rotation, horizontal nudge ──
+interface PrintConfig {
+  bookIndex: number;
+  aspect: string;
   rotate: number;
-  rotateY: number;
-  scale: number;
-  zIndex: number;
+  offsetX: number;
 }
 
-const standingPlacements: StandingPlacement[] = [
-  // 0: Travel — large hero, left of center, slight lean left
-  { x: -220, y: 10, rotate: -4, rotateY: -10, scale: 1.05, zIndex: 12 },
-  // 1: Portraits — large hero, right of center
-  { x: 110, y: 25, rotate: 5, rotateY: 7, scale: 1.0, zIndex: 11 },
-  // 2: Cities — medium, far left, leaning more
-  { x: -480, y: 50, rotate: -11, rotateY: -16, scale: 0.78, zIndex: 6 },
-  // 3: Landscapes — medium, between heroes, behind
-  { x: -50, y: -30, rotate: 2, rotateY: -4, scale: 0.82, zIndex: 4 },
-  // 4: Night — smaller, far right, leaning
-  { x: 420, y: 45, rotate: 9, rotateY: 13, scale: 0.74, zIndex: 7 },
-  // 5: Documentary — medium, right of portraits
-  { x: 320, y: -10, rotate: 7, rotateY: 9, scale: 0.8, zIndex: 5 },
+// Three columns, two prints each. Pairing landscape + portrait per column
+// creates natural height variation → organic masonry stagger.
+const columnsLayout: PrintConfig[][] = [
+  [
+    { bookIndex: 0, aspect: "4/3", rotate: -2.1, offsetX: 5 }, // Travel
+    { bookIndex: 3, aspect: "3/4", rotate: 1.9, offsetX: -6 }, // Landscapes
+  ],
+  [
+    { bookIndex: 1, aspect: "3/4", rotate: 1.4, offsetX: -3 }, // Portraits
+    { bookIndex: 4, aspect: "16/10", rotate: -2.6, offsetX: 4 }, // Night
+  ],
+  [
+    { bookIndex: 2, aspect: "4/3", rotate: -0.7, offsetX: 0 }, // Cities
+    { bookIndex: 5, aspect: "3/4", rotate: 0.5, offsetX: -5 }, // Documentary
+  ],
 ];
 
-// ── Flat books lying on the "table" surface ──
-interface FlatPlacement {
-  bookIndex: number;
-  imageIndex: number;
-  x: number;
-  y: number;
-  rotate: number;
-  width: number;
-  height: number;
-  zIndex: number;
-}
-
-const flatPlacements: FlatPlacement[] = [
-  { bookIndex: 3, imageIndex: 2, x: -350, y: 240, rotate: -20, width: 170, height: 230, zIndex: 3 },
-  { bookIndex: 0, imageIndex: 3, x: -290, y: 260, rotate: -8, width: 160, height: 215, zIndex: 2 },
-  { bookIndex: 4, imageIndex: 1, x: 280, y: 260, rotate: 14, width: 155, height: 210, zIndex: 3 },
-];
-
-// ── Scattered photo cards / prints ──
-interface PhotoCardPlacement {
-  bookIndex: number;
-  imageIndex: number;
-  x: number;
-  y: number;
-  rotate: number;
-  width: number;
-  height: number;
-  label: string;
-  zIndex: number;
-}
-
-const photoCardPlacements: PhotoCardPlacement[] = [
-  { bookIndex: 0, imageIndex: 4, x: -520, y: 200, rotate: -28, width: 110, height: 80, label: "Dusk", zIndex: 2 },
-  { bookIndex: 1, imageIndex: 3, x: 500, y: 180, rotate: 22, width: 100, height: 130, label: "Portrait IV", zIndex: 2 },
-  { bookIndex: 2, imageIndex: 2, x: 60, y: 300, rotate: -6, width: 130, height: 90, label: "Urban", zIndex: 2 },
-  { bookIndex: 5, imageIndex: 2, x: -140, y: 290, rotate: 11, width: 105, height: 140, label: "Stories", zIndex: 2 },
-  { bookIndex: 4, imageIndex: 3, x: 460, y: 300, rotate: -15, width: 95, height: 70, label: "Midnight", zIndex: 1 },
+// Responsive column-top padding (Tailwind classes, lg-only)
+const columnPadClasses = [
+  "", // col 1 — flush
+  "lg:pt-10", // col 2 — 40px stagger
+  "lg:pt-5", // col 3 — 20px stagger
 ];
 
 export default function BookShelf({ books }: BookShelfProps) {
+  const router = useRouter();
   const [showLoading, setShowLoading] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
-  const [sceneScale, setSceneScale] = useState(1);
+  const [openingSlug, setOpeningSlug] = useState<string | null>(null);
 
   const handleLoadingComplete = useCallback(() => {
     setShowLoading(false);
     setTimeout(() => setSceneReady(true), 200);
   }, []);
 
-  // Responsive scaling — fit the 1200×700 scene to the viewport
-  useEffect(() => {
-    const update = () => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const sx = vw / 1300;
-      const sy = (vh - 80) / 800;
-      setSceneScale(Math.min(sx, sy, 1.15));
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+  const handlePrintClick = (slug: string) => {
+    if (openingSlug) return;
+    setOpeningSlug(slug);
+    setTimeout(() => router.push(`/category/${slug}`), 700);
+  };
+
+  // Stagger index across all prints (counts 0-5 across all columns)
+  let staggerIdx = 0;
 
   return (
     <>
       {showLoading && <LoadingScreen onComplete={handleLoadingComplete} />}
 
       <div
-        className="min-h-screen flex flex-col overflow-hidden relative"
-        style={{ backgroundColor: "#f0e8da" }}
+        className="min-h-screen relative"
+        style={{ backgroundColor: "#f7f3ee" }}
       >
-        {/* ═══ WARM AMBIENT LIGHTING LAYERS ═══ */}
+        {/* Warm ambient surface light */}
         <div className="fixed inset-0 pointer-events-none z-0">
-          {/* Warm golden radial from upper-left — desk lamp feel */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse at 20% 15%, rgba(255,220,160,0.18) 0%, transparent 55%)",
+                "radial-gradient(ellipse at 25% 18%, rgba(255,228,175,0.10) 0%, transparent 60%)",
             }}
           />
-          {/* Subtle warm center spot */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse at 50% 45%, rgba(255,235,200,0.10) 0%, transparent 50%)",
-            }}
-          />
-          {/* Soft vignette */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(30,20,10,0.08) 100%)",
-            }}
-          />
-          {/* Very subtle warm color wash */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(160deg, rgba(200,170,120,0.04) 0%, transparent 40%, rgba(180,150,100,0.03) 100%)",
+                "radial-gradient(ellipse at 72% 78%, rgba(218,198,168,0.06) 0%, transparent 50%)",
             }}
           />
         </div>
 
-        {/* ═══ HEADER ═══ */}
-        <motion.header
-          className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-10 md:px-14 py-8 md:py-10"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: sceneReady ? 1 : 0, y: sceneReady ? 0 : -20 }}
-          transition={{ duration: 1.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <h1 className="text-[10px] tracking-[0.6em] uppercase text-neutral-500/70">
-            Photography Collection
-          </h1>
-          <span className="text-[9px] tracking-[0.4em] uppercase text-neutral-400/50">
-            Select a Volume
-          </span>
-        </motion.header>
-
-        {/* ═══ MAIN SCENE ═══ */}
-        <div className="flex-1 flex flex-col items-center justify-center min-h-screen relative z-[1]">
-          {/* Title — floats above the chaos */}
+        {/* Content */}
+        <div className="relative z-[1] max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 pt-16 md:pt-24 pb-20">
+          {/* ── Title ── */}
           <motion.div
-            className="text-center mb-8 md:mb-12 relative z-20"
-            initial={{ opacity: 0, y: 50 }}
+            className="text-center mb-14 md:mb-20"
+            initial={{ opacity: 0, y: 30 }}
             animate={{
               opacity: sceneReady ? 1 : 0,
-              y: sceneReady ? 0 : 50,
+              y: sceneReady ? 0 : 30,
             }}
-            transition={{ duration: 1.4, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            transition={{
+              duration: 1,
+              delay: 0.1,
+              ease: [0.22, 1, 0.36, 1],
+            }}
           >
-            <p className="text-[8px] tracking-[0.8em] uppercase text-neutral-400/60 mb-4">
-              The Library
+            <p className="text-[9px] tracking-[0.7em] uppercase text-neutral-400/50 mb-4">
+              A Collection
             </p>
-            <h2
-              className="text-6xl md:text-7xl lg:text-8xl font-extralight tracking-tight leading-none"
-              style={{ color: "rgba(60, 45, 30, 0.75)" }}
-            >
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extralight text-neutral-700 tracking-tight">
               Photography
-            </h2>
-            <div
-              className="w-14 h-[1px] mx-auto mt-6"
-              style={{ backgroundColor: "rgba(160, 140, 110, 0.25)" }}
-            />
+            </h1>
+            <div className="w-12 h-[1px] bg-neutral-300/30 mx-auto mt-6" />
           </motion.div>
 
-          {/* ═══ THE CHAOTIC LIBRARY SCENE ═══ */}
-          <div
-            className="relative"
-            style={{
-              width: 1200,
-              height: 650,
-              transform: `scale(${sceneScale})`,
-              transformOrigin: "center center",
-            }}
-          >
-            {/* Table surface shadow — implied surface */}
-            <motion.div
-              className="absolute"
-              style={{
-                left: -100,
-                right: -100,
-                bottom: -20,
-                height: 380,
-                background:
-                  "linear-gradient(to bottom, transparent 0%, rgba(120,90,50,0.03) 30%, rgba(100,75,40,0.06) 70%, rgba(80,60,30,0.04) 100%)",
-                borderRadius: "50% 50% 0 0 / 20% 20% 0 0",
-              }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: sceneReady ? 1 : 0 }}
-              transition={{ duration: 1.5, delay: 0.5 }}
-            />
+          {/* ── Photo prints — 3-column masonry ── */}
+          <div className="flex flex-col lg:flex-row gap-5 lg:gap-7">
+            {columnsLayout.map((column, colIdx) => (
+              <div
+                key={colIdx}
+                className={`flex-1 flex flex-col gap-5 lg:gap-7 ${columnPadClasses[colIdx]}`}
+              >
+                {column.map((config) => {
+                  const book = books[config.bookIndex];
+                  const idx = staggerIdx++;
+                  const isOpening = openingSlug === book.slug;
 
-            {/* ── FLAT BOOKS (lying on table) ── */}
-            {sceneReady &&
-              flatPlacements.map((fp, i) => (
-                <motion.div
-                  key={`flat-${i}`}
-                  className="absolute cursor-pointer group"
-                  style={{
-                    left: `calc(50% + ${fp.x}px)`,
-                    top: `calc(50% + ${fp.y}px)`,
-                    width: fp.width,
-                    height: fp.height,
-                    zIndex: fp.zIndex,
-                    transform: `translate(-50%, -50%) rotate(${fp.rotate}deg)`,
-                  }}
-                  initial={{ opacity: 0, scale: 0.8, y: 30 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{
-                    duration: 0.9,
-                    delay: 0.8 + i * 0.15,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  whileHover={{
-                    scale: 1.06,
-                    y: -5,
-                    transition: { duration: 0.4 },
-                  }}
-                >
-                  {/* Book shadow */}
-                  <div
-                    className="absolute -bottom-2 left-1 right-1 h-4 rounded-full"
-                    style={{
-                      background: "rgba(60, 40, 20, 0.15)",
-                      filter: "blur(6px)",
-                    }}
-                  />
-                  {/* Cover */}
-                  <div
-                    className="relative w-full h-full rounded-[2px] overflow-hidden"
-                    style={{
-                      boxShadow:
-                        "0 2px 8px rgba(40, 25, 10, 0.2), 0 1px 3px rgba(40, 25, 10, 0.15)",
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={books[fp.bookIndex].images[fp.imageIndex]}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
-                    {/* Title on cover */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white/70 text-[8px] tracking-[0.2em] uppercase">
-                        {books[fp.bookIndex].title}
-                      </p>
-                    </div>
-                    {/* Thickness edge — bottom */}
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-[4px]"
+                  return (
+                    <motion.div
+                      key={book.slug}
+                      className="relative group"
                       style={{
-                        background:
-                          "linear-gradient(to bottom, #e8e2d8, #d8d0c4)",
+                        zIndex: isOpening ? 50 : 1,
+                        marginLeft: config.offsetX,
                       }}
-                    />
-                    {/* Hover light */}
-                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-all duration-500" />
-                  </div>
-                </motion.div>
-              ))}
-
-            {/* ── PHOTO CARDS (scattered prints) ── */}
-            {sceneReady &&
-              photoCardPlacements.map((pc, i) => (
-                <motion.div
-                  key={`card-${i}`}
-                  className="absolute cursor-default group"
-                  style={{
-                    left: `calc(50% + ${pc.x}px)`,
-                    top: `calc(50% + ${pc.y}px)`,
-                    width: pc.width,
-                    height: pc.height,
-                    zIndex: pc.zIndex,
-                    transform: `translate(-50%, -50%) rotate(${pc.rotate}deg)`,
-                  }}
-                  initial={{ opacity: 0, scale: 0.7 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{
-                    duration: 0.8,
-                    delay: 1.2 + i * 0.1,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  whileHover={{
-                    scale: 1.08,
-                    rotate: pc.rotate * 0.5,
-                    transition: { duration: 0.4 },
-                  }}
-                >
-                  {/* Card shadow */}
-                  <div
-                    className="absolute -bottom-1 left-1 right-1 h-3 rounded-full"
-                    style={{
-                      background: "rgba(60, 40, 20, 0.10)",
-                      filter: "blur(4px)",
-                    }}
-                  />
-                  {/* Photo print */}
-                  <div
-                    className="relative w-full h-full overflow-hidden"
-                    style={{
-                      borderRadius: 1,
-                      boxShadow:
-                        "0 1px 4px rgba(40, 25, 10, 0.15), 0 0.5px 1px rgba(40, 25, 10, 0.1)",
-                    }}
-                  >
-                    {/* White border — like a printed photo */}
-                    <div className="absolute inset-0 bg-white p-[3px]">
-                      <div className="w-full h-full overflow-hidden relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={books[pc.bookIndex].images[pc.imageIndex]}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    </div>
-                    {/* Semi-transparent label */}
-                    <div
-                      className="absolute bottom-0 left-0 right-0 flex items-center justify-center py-[3px]"
-                      style={{
-                        backgroundColor: "rgba(255,255,255,0.75)",
-                        backdropFilter: "blur(4px)",
+                      initial={{ opacity: 0, y: 40, rotate: 0 }}
+                      animate={{
+                        opacity: sceneReady ? 1 : 0,
+                        y: sceneReady ? (isOpening ? -8 : 0) : 40,
+                        rotate: isOpening
+                          ? 0
+                          : sceneReady
+                            ? config.rotate
+                            : 0,
+                        scale: isOpening ? 1.03 : 1,
                       }}
+                      transition={{
+                        duration: 0.9,
+                        delay: sceneReady ? 0.1 + idx * 0.09 : 0,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                      whileHover={
+                        !openingSlug
+                          ? {
+                              y: -6,
+                              rotate: config.rotate * 0.25,
+                              scale: 1.015,
+                              transition: {
+                                duration: 0.45,
+                                ease: [0.22, 1, 0.36, 1],
+                              },
+                            }
+                          : undefined
+                      }
+                      onClick={() => handlePrintClick(book.slug)}
                     >
-                      <span className="text-[6px] tracking-[0.3em] uppercase text-neutral-500">
-                        {pc.label}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                      {/* The printed photograph */}
+                      <div
+                        className="bg-white p-3 md:p-4 cursor-pointer transition-shadow duration-500
+                          shadow-[0_2px_14px_rgba(0,0,0,0.05),0_1px_4px_rgba(0,0,0,0.03)]
+                          group-hover:shadow-[0_10px_32px_rgba(0,0,0,0.10),0_3px_10px_rgba(0,0,0,0.04)]"
+                      >
+                        {/* Photo area */}
+                        <div
+                          className="overflow-hidden bg-neutral-100"
+                          style={{ aspectRatio: config.aspect }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={book.images[0]}
+                            alt={book.title}
+                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                            loading="lazy"
+                          />
+                        </div>
 
-            {/* ── STANDING 3D BOOKS ── */}
-            {sceneReady &&
-              standingPlacements.map((pl, i) => (
-                <div
-                  key={books[i].slug}
-                  className="absolute"
-                  style={{
-                    left: `calc(50% + ${pl.x}px)`,
-                    top: `calc(50% + ${pl.y}px)`,
-                    transform: `translate(-50%, -100%) scale(${pl.scale}) rotate(${pl.rotate}deg)`,
-                    zIndex: pl.zIndex,
-                  }}
-                >
-                  <Book
-                    book={books[i]}
-                    index={i}
-                    initialRotateY={pl.rotateY}
-                  />
-                </div>
-              ))}
+                        {/* Label underneath — like pencil notes on a print */}
+                        <div className="mt-2.5 md:mt-3 px-[2px] flex items-baseline justify-between">
+                          <span className="text-[12px] md:text-[13px] text-neutral-600 tracking-wide font-light">
+                            {book.title}
+                          </span>
+                          <span className="text-[7px] md:text-[8px] text-neutral-300 tracking-[0.2em] uppercase">
+                            {book.images.length} photos
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
+
+          {/* ── Footer ── */}
+          <motion.div
+            className="text-center mt-16 md:mt-24"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: sceneReady ? 1 : 0 }}
+            transition={{ duration: 1, delay: 1 }}
+          >
+            <div className="w-6 h-[1px] bg-neutral-300/20 mx-auto mb-4" />
+            <span className="text-[7px] tracking-[0.7em] uppercase text-neutral-400/30">
+              {books.length} Collections
+            </span>
+          </motion.div>
         </div>
 
-        {/* ═══ FOOTER ═══ */}
-        <motion.footer
-          className="fixed bottom-0 left-0 right-0 flex items-center justify-center py-8 z-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: sceneReady ? 1 : 0 }}
-          transition={{ duration: 1, delay: 1.5 }}
-        >
-          <span
-            className="text-[7px] tracking-[0.7em] uppercase"
-            style={{ color: "rgba(120, 100, 70, 0.35)" }}
-          >
-            {books.length} Volumes &middot; A Collection
-          </span>
-        </motion.footer>
+        {/* Click-to-navigate overlay */}
+        <AnimatePresence>
+          {openingSlug && (
+            <motion.div
+              className="fixed inset-0 z-40"
+              style={{ backgroundColor: "#f7f3ee" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
