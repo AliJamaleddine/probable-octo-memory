@@ -2,13 +2,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #c4a882;
+  --background: #e8e0d4;
   --foreground: #2a2420;
-  --paper-cream: #f5f0e6;
-  --paper-white: #faf7f2;
+  --paper-cream: #ece6da;
+  --paper-white: #f8f5f0;
   --tape-yellow: rgba(255, 235, 160, 0.55);
-  --pencil-gray: #8a8070;
-  --sticky-yellow: #fef3c7;
+  --pencil-gray: #7a7060;
+  --sticky-yellow: #f5e6a3;
   --sticky-pink: #fce7f3;
   --sticky-blue: #dbeafe;
   --sticky-green: #dcfce7;
@@ -30,17 +30,29 @@ body {
   overflow-x: hidden;
 }
 
-.desk-surface {
-  background-color: #c4a882;
+/* Cream paper background - like the reference image */
+.paper-desk {
+  background-color: #e8e0d4;
   background-image:
-    repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,0,0,0.02) 40px, rgba(0,0,0,0.02) 41px),
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139,109,71,0.08) 2px, rgba(139,109,71,0.08) 4px),
-    linear-gradient(180deg, #cdb68e 0%, #b89b6a 30%, #c4a878 60%, #bfa070 100%);
+    radial-gradient(ellipse at 30% 20%, rgba(220, 210, 195, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 70%, rgba(200, 190, 170, 0.3) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(235, 225, 210, 0.4) 0%, transparent 60%);
+}
+
+/* Paper texture noise overlay */
+.paper-noise::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
 }
 
 .polaroid {
   background: var(--paper-white);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12), 0 6px 20px rgba(0,0,0,0.08);
 }
 
 .tape {
@@ -52,7 +64,7 @@ body {
 .sticky-note {
   font-family: 'Caveat', cursive;
   padding: 14px 16px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.04);
 }
 
 .handwritten { font-family: 'Caveat', cursive; }
@@ -63,12 +75,12 @@ body {
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
 .coffee-stain {
   border-radius: 50%;
-  background: radial-gradient(ellipse at 45% 45%, rgba(139,90,43,0.15) 0%, rgba(139,90,43,0.10) 30%, rgba(139,90,43,0.04) 60%, transparent 70%);
+  background: radial-gradient(ellipse at 45% 45%, rgba(139,90,43,0.12) 0%, rgba(139,90,43,0.07) 35%, rgba(139,90,43,0.02) 60%, transparent 70%);
   filter: blur(1px);
 }
 
@@ -94,8 +106,3 @@ html { scroll-behavior: smooth; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 ::selection { background-color: rgba(180,140,60,0.2); color: inherit; }
-
-@keyframes pencilDraw {
-  from { stroke-dashoffset: var(--path-length); }
-  to { stroke-dashoffset: 0; }
-}
